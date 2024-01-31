@@ -11,6 +11,7 @@ class HomeController extends GetxController {
   NetworkConnect service = Get.put(NetworkConnect());
   UserModel? userModel;
   String randomDogImage = '';
+  bool loading = false;
   final MethodChannel channel = const MethodChannel('bluetooth_channel');
 
   @override
@@ -21,14 +22,20 @@ class HomeController extends GetxController {
 
   Future<void> getUserDetail() async {
     Get.toNamed('/UserScreen');
+    loading = true;
+    update();
     var response = await service.getUser();
     userModel = response;
+    loading = false;
     update();
   }
 
   Future<void> getRandomDog() async{
+    loading = true;
+    update();
     String image = await service.getDogImage();
     randomDogImage = image;
+    loading = false;
     update();
     }
 

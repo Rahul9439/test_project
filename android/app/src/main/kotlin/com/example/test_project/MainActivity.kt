@@ -5,28 +5,28 @@ import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.annotation.NonNull
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugins.GeneratedPluginRegistrant
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "bluetooth_channel"
-    private val BLUETOOTH_PERMISSION_REQUEST_CODE = 123
+    private var enableBluetoothResult: MethodChannel.Result? = null
 
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
+    override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
+        GeneratedPluginRegistrant.registerWith(flutterEngine)
 
+        // Set up a MethodChannel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "enableBluetooth" -> {
-                    if (hasBluetoothPermissions()) {
-                        enableBluetooth(result)
-                    } else {
-                        requestBluetoothPermissions()
-                    }
+                    enableBluetoothResult = result
+                    enableBluetooth()
                 }
                 else -> {
                     result.notImplemented()
@@ -35,57 +35,53 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun hasBluetoothPermissions(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            checkSelfPermission(Manifest.permission.BLUETOOTH) == PackageManager.PERMISSION_GRANTED &&
-                    checkSelfPermission(Manifest.permission.BLUETOOTH_ADMIN) == PackageManager.PERMISSION_GRANTED &&
-                    checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-    }
-
-    private fun requestBluetoothPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(
-                            Manifest.permission.BLUETOOTH,
-                            Manifest.permission.BLUETOOTH_ADMIN,
-                            Manifest.permission.BLUETOOTH_CONNECT
-                    ),
-                    BLUETOOTH_PERMISSION_REQUEST_CODE
-            )
-        }
-    }
-
-    private fun enableBluetooth(result: MethodChannel.Result) {
+    private fun enableBluetooth() {
         val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+
         if (bluetoothAdapter == null) {
-            result.error("BLUETOOTH_UNAVAILABLE", "Device does not support Bluetooth", null)
+            // Device does not support Bluetooth
+            enableBluetoothResult?.error("BLUETOOTH_NOT_SUPPORTED", "Bluetooth is not supported on this device", null)
             return
         }
 
-        if (!bluetoothAdapter.isEnabled) {
-            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            startActivityForResult(enableBtIntent, 1)
-        } else {
-            result.success("Bluetooth is already enabled")
+        if (bluetoothAdapter.isEnabled) {
+            // Bluetooth is already enabled
+            enableBluetoothResult?.success("Bluetooth is already enabled")
+            return
+        }
+
+        // Check and request Bluetooth permission if needed
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val bluetoothConnectPermission = Manifest.permission.BLUETOOTH_CONNECT
+
+            if (ContextCompat.checkSelfPermission(this, bluetoothConnectPermission) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(bluetoothConnectPermission), 3)
+                return
+            }
+        }
+
+        // Request user to enable Bluetooth
+        val enableBluetoothIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        startActivityForResult(enableBluetoothIntent, 2)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (requestCode == 1) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, attempt to enable Bluetooth again
+                enableBluetooth()
+            } else {
+                enableBluetoothResult?.error("BLUETOOTH_PERMISSION_DENIED", "Bluetooth permission denied", null)
+            }
         }
     }
 
-    override fun onRequestPermissionsResult(
-            requestCode: Int,
-            permissions: Array<out String>,
-            grantResults: IntArray
-    ) {
-        if (requestCode == BLUETOOTH_PERMISSION_REQUEST_CODE) {
-            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                // All Bluetooth permissions granted, proceed to enableBluetooth
-                MethodChannel(binaryMessenger, CHANNEL).invokeMethod("enableBluetooth", null)
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 2) {
+            enableBluetoothResult?.success("Bluetooth enabled")
         }
     }
 }
+
+

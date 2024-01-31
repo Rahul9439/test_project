@@ -17,47 +17,51 @@ class HomeScreen extends StatelessWidget {
           return Scaffold(
               appBar: AppBar(
                 backgroundColor: Colors.blue,
-                title: const Text(
-                  'Home Page',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold),
+                title: const Center(
+                  child: Text(
+                    'Home Page',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 25,
+                        fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
               body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: CachedNetworkImage(
-                        imageUrl: controller.randomDogImage,
-                        placeholder: (context, url) => Image.asset(
-                          'assets/image/loading_gif.gif',
-                          height: 300,
-                        ),
-                        fit: BoxFit.cover,
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.error),
+                child: controller.loading
+                    ? const CircularProgressIndicator()
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: CachedNetworkImage(
+                              imageUrl: controller.randomDogImage,
+                              placeholder: (context, url) => Image.asset(
+                                'assets/image/loading_gif.gif',
+                                height: 300,
+                              ),
+                              fit: BoxFit.cover,
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.error),
+                            ),
+                          ).paddingOnly(bottom: 20, left: 20, right: 20),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              CommonButton(
+                                  onPressed: controller.getRandomDog,
+                                  text: 'Refresh'),
+                              CommonButton(
+                                  onPressed: controller.getUserDetail,
+                                  text: 'Profile'),
+                            ],
+                          ),
+                          CommonButton(
+                              onPressed: controller.enableBluetooth,
+                              text: 'Bluetooth'),
+                        ],
                       ),
-                    ).paddingOnly(bottom: 20, left: 20, right: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        CommonButton(
-                            onPressed: controller.getRandomDog,
-                            text: 'Refresh'),
-                        CommonButton(
-                            onPressed: controller.getUserDetail,
-                            text: 'Profile'),
-                      ],
-                    ),
-                    CommonButton(
-                        onPressed: controller.enableBluetooth,
-                        text: 'Bluetooth'),
-                  ],
-                ),
               ));
         });
   }
